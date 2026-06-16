@@ -1,0 +1,37 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from app.routes.auth import router as auth_router
+from app.routes.vehicles import router as vehicles_router
+from app.routes.parts import router as parts_router
+from app.routes.garage import router as garage_router
+from app.routes.orders import router as orders_router
+from app.routes.maintenance import router as maintenance_router
+from app.routes.uploads import router as uploads_router
+
+app = FastAPI(title="AutoParts API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Fichiers statiques (images uploadées)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Routes
+app.include_router(auth_router)
+app.include_router(vehicles_router)
+app.include_router(parts_router)
+app.include_router(garage_router)
+app.include_router(orders_router)
+app.include_router(maintenance_router)
+app.include_router(uploads_router)
+
+@app.get("/")
+async def root():
+    return {"message": "AutoParts API opérationnelle"}
