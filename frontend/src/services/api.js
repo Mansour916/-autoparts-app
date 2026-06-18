@@ -31,6 +31,8 @@ export const partsAPI = {
   list: (params) => api.get('/parts/', { params }),
   get: (id, vehicleId) => api.get(`/parts/${id}`, { params: { vehicle_id: vehicleId } }),
   create: (data) => api.post('/parts/', data),
+  update: (id, data) => api.put(`/parts/${id}`, data),
+  remove: (id) => api.delete(`/parts/${id}`),
   compare: (oemRef, vehicleId) => api.get(`/parts/compare/${oemRef}`, { params: { vehicle_id: vehicleId } }),
   getImages: (partId) => api.get(`/parts/${partId}/images`)
 }
@@ -62,6 +64,11 @@ export const uploadsAPI = {
     })
   },
   deletePartImage: (imageId) => api.delete(`/uploads/parts/images/${imageId}`)
+}
+export const storesAPI = {
+  list: () => api.get('/stores/'),
+  create: (data) => api.post('/stores/', data),
+  remove: (storeId) => api.delete(`/stores/${storeId}`)
 }
 
 export const BASE_URL = 'http://localhost:8000'

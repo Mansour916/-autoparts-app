@@ -9,6 +9,7 @@ from app.routes.garage import router as garage_router
 from app.routes.orders import router as orders_router
 from app.routes.maintenance import router as maintenance_router
 from app.routes.uploads import router as uploads_router
+from app.routes.stores import router as stores_router
 
 app = FastAPI(title="AutoParts API", version="1.0.0")
 
@@ -20,10 +21,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Fichiers statiques (images uploadées)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Routes
 app.include_router(auth_router)
 app.include_router(vehicles_router)
 app.include_router(parts_router)
@@ -31,7 +30,8 @@ app.include_router(garage_router)
 app.include_router(orders_router)
 app.include_router(maintenance_router)
 app.include_router(uploads_router)
+app.include_router(stores_router)
 
 @app.get("/")
 async def root():
-    return {"message": "AutoParts API opérationnelle"}
+    return {"message": "AutoParts API operationnelle"}

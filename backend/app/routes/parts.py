@@ -12,7 +12,6 @@ from app.services.compatibility_service import CompatibilityService
 
 router = APIRouter(prefix="/parts", tags=["parts"])
 
-# Schémas
 class PartCreate(BaseModel):
     name: str
     description: Optional[str] = None
@@ -27,12 +26,24 @@ class PartCreate(BaseModel):
     warranty_months: Optional[int] = 24
     certification: Optional[str] = None
 
+class PartUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[PartCategory] = None
+    oem_reference: Optional[str] = None
+    brand: Optional[str] = None
+    price: Optional[float] = None
+    stock: Optional[int] = None
+    video_url: Optional[str] = None
+    weight_kg: Optional[float] = None
+    warranty_months: Optional[int] = None
+    certification: Optional[str] = None
+
 class CompatibilityAdd(BaseModel):
     part_id: str
     vehicle_id: str
     notes: Optional[str] = ""
 
-# Endpoints
 @router.get("/")
 async def list_parts(
     vehicle_id: Optional[str] = Query(None),
@@ -64,7 +75,7 @@ async def compare_by_oem(
     parts = result.scalars().all()
 
     if not parts:
-        raise HTTPException(status_code=404, detail="Aucune pièce trouvée pour cette référence")
+        raise HTTPException(status_code=404, detail="Aucune piece trouvee pour cette reference")
 
     response = []
     for part in parts:
@@ -104,7 +115,7 @@ async def get_part(part_id: str, vehicle_id: Optional[str] = Query(None), db: As
     part = result.scalar_one_or_none()
 
     if not part:
-        raise HTTPException(status_code=404, detail="Pièce non trouvée")
+        raise HTTPException(status_code=404, detail="Piece non trouvee")
 
     response = {
         "id": str(part.id),
@@ -137,9 +148,34 @@ async def create_part(data: PartCreate, db: AsyncSession = Depends(get_db)):
         db.add(part)
         await db.commit()
         await db.refresh(part)
-        return {"message": "Pièce ajoutée", "id": str(part.id)}
+        return {"message": "Piece ajoutee", "id": str(part.id)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/{part_id}")
+async def update_part(part_id: str, data: PartUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Part).where(Part.id == part_id))
+    part = result.scalar_one_or_none()
+    if not part:
+        raise HTTPException(status_code=404, detail="Piece non trouvee")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(part, key, value)
+
+    await db.commit()
+    await db.refresh(part)
+    return {"message": "Piece mise a jour", "id": str(part.id)}
+
+@router.delete("/{part_id}")
+async def delete_part(part_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Part).where(Part.id == part_id))
+    part = result.scalar_one_or_none()
+    if not part:
+        raise HTTPException(status_code=404, detail="Piece non trouvee")
+    part.is_active = False
+    await db.commit()
+    return {"message": "Piece supprimee"}
 
 @router.post("/compatibility", status_code=201)
 async def add_compatibility(data: CompatibilityAdd, db: AsyncSession = Depends(get_db)):
@@ -147,6 +183,6 @@ async def add_compatibility(data: CompatibilityAdd, db: AsyncSession = Depends(g
         compat = await CompatibilityService.add_compatibility(
             db, data.part_id, data.vehicle_id, data.notes
         )
-        return {"message": "Compatibilité ajoutée", "id": str(compat.id)}
+        return {"message": "Compatibilite ajoutee", "id": str(compat.id)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -102,6 +102,7 @@ export default function Navbar() {
             { path: '/', icon: '🔍', label: 'Recherche par VIN' },
             { path: '/garage', icon: '🚗', label: 'Mon Garage' },
             { path: '/orders', icon: '📦', label: 'Mes Commandes' },
+            { path: '/stores', icon: '📍', label: 'Trouver un magasin' },
             { path: '/cart', icon: '🛒', label: `Panier (${cartCount})` },
           ].map(item => (
             <button

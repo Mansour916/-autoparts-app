@@ -10,6 +10,7 @@ import OrdersPage from './pages/OrdersPage'
 import MaintenancePage from './pages/MaintenancePage'
 import DiagramPage from './pages/DiagramPage'
 import AdminPage from './pages/AdminPage'
+import StoreFinderPage from './pages/StoreFinderPage'
 import Navbar from './components/Navbar'
 import useAuthStore from './store/authStore'
 
@@ -73,6 +74,11 @@ export default function App() {
         <Route path="/admin" element={
           <ProtectedRoute>
             <AdminPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/stores" element={
+          <ProtectedRoute>
+            <StoreFinderPage />
           </ProtectedRoute>
         } />
       </Routes>
