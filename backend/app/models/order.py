@@ -22,14 +22,18 @@ class Order(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     status = Column(Enum(OrderStatus), default=OrderStatus.pending)
     total_price = Column(Float, nullable=False)
-    delivery_address = Column(Text, nullable=False)
-    is_free_return = Column(Boolean, default=True)  # garantie "Bonne Pièce"
+    delivery_address = Column(Text, nullable=True)
+    delivery_phone = Column(String(50), nullable=True)
+    delivery_email = Column(String(255), nullable=True)
+    fulfillment_type = Column(String(20), default="delivery")
+    pickup_store_id = Column(UUID(as_uuid=True), ForeignKey("stores.id"), nullable=True)
+    is_free_return = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relations
     user = relationship("User", back_populates="orders")
     items = relationship("OrderItem", back_populates="order")
+    pickup_store = relationship("Store")
 
 class OrderItem(Base):
     __tablename__ = "order_items"
@@ -40,6 +44,5 @@ class OrderItem(Base):
     quantity = Column(Integer, nullable=False)
     unit_price = Column(Float, nullable=False)
 
-    # Relations
     order = relationship("Order", back_populates="items")
     part = relationship("Part")

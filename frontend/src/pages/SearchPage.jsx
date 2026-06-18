@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { vehiclesAPI } from '../services/api'
+import { vehiclesAPI, partsAPI, authAPI, BASE_URL } from '../services/api'
 import useVehicleStore from '../store/vehicleStore'
 
 export default function SearchPage() {
@@ -11,7 +11,34 @@ export default function SearchPage() {
 
   const { setSelectedVehicle } = useVehicleStore()
   const navigate = useNavigate()
+  const [allParts, setAllParts] = useState([])
+  const [isLoadingParts, setIsLoadingParts] = useState(true)
+  const [loyaltyPoints, setLoyaltyPoints] = useState(null)
 
+  useEffect(() => {
+    loadParts()
+    loadLoyalty()
+  }, [])
+
+  const loadLoyalty = async () => {
+    try {
+      const response = await authAPI.getMe()
+      setLoyaltyPoints(response.data.loyalty_points)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const loadParts = async () => {
+    try {
+      const response = await partsAPI.list({})
+      setAllParts(response.data.slice(0, 8))
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsLoadingParts(false)
+    }
+  }
   const handleSearch = async () => {
     if (!searchValue.trim()) return
     setIsLoading(true)
@@ -36,8 +63,14 @@ export default function SearchPage() {
         <div className="max-w-5xl mx-auto px-4 py-16 text-center">
           <div className="inline-flex items-center gap-2 bg-ev-green/10 border border-ev-green/20 text-ev-green text-sm font-semibold px-4 py-1.5 rounded-full mb-6">
             <span className="w-2 h-2 rounded-full bg-ev-green animate-pulse"></span>
-            Spécialiste Pièces VE & Hybrides
+            Specialiste Pieces VE & Hybrides
           </div>
+
+          {loyaltyPoints !== null && (
+            <div className="inline-flex items-center gap-2 bg-ev-amber/15 border border-ev-amber/30 text-ev-amber text-sm font-bold px-4 py-2 rounded-full mb-4 ml-3">
+              ⭐ {loyaltyPoints} points fidelite
+            </div>
+          )}
           <h1 className="font-display text-5xl font-bold text-white mb-4 leading-tight">
             La bonne pièce,<br />
             <span className="text-ev-blue">garantie compatible</span>
@@ -114,18 +147,18 @@ export default function SearchPage() {
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { icon: '🔋', label: 'Batteries', desc: 'Pack & cellules' },
-            { icon: '❄️', label: 'Refroidissement', desc: 'Circuit thermique' },
-            { icon: '⚡', label: 'Électronique', desc: 'Modules & capteurs' },
-            { icon: '🛑', label: 'Freins', desc: 'Plaquettes & disques' },
-            { icon: '⚙️', label: 'Moteur', desc: 'Pièces moteur' },
-            { icon: '🔧', label: 'Suspension', desc: 'Amortisseurs' },
-            { icon: '🧰', label: 'Filtres', desc: 'Habitacle & air' },
-            { icon: '🛞', label: 'Pneus', desc: 'Spécial VE' },
+            { icon: '🔋', label: 'Batteries', desc: 'Pack & cellules', key: 'battery' },
+            { icon: '❄️', label: 'Refroidissement', desc: 'Circuit thermique', key: 'cooling' },
+            { icon: '⚡', label: 'Electronique', desc: 'Modules & capteurs', key: 'electronics' },
+            { icon: '🛑', label: 'Freins', desc: 'Plaquettes & disques', key: 'brakes' },
+            { icon: '⚙️', label: 'Moteur', desc: 'Pieces moteur', key: 'motor' },
+            { icon: '🔧', label: 'Suspension', desc: 'Amortisseurs', key: 'suspension' },
+            { icon: '🧰', label: 'Filtres', desc: 'Habitacle & air', key: 'filters' },
+            { icon: '🛞', label: 'Pneus', desc: 'Special VE', key: 'tires' },
           ].map((cat) => (
             <button
               key={cat.label}
-              onClick={() => navigate('/parts')}
+              onClick={() => navigate('/parts', { state: { category: cat.key } })}
               className="bg-white border-2 border-slate-200 hover:border-ev-blue hover:shadow-md rounded-2xl p-5 text-left transition-all group"
             >
               <div className="text-3xl mb-2">{cat.icon}</div>
@@ -134,6 +167,63 @@ export default function SearchPage() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Produits populaires */}
+      <div className="max-w-5xl mx-auto px-4 pb-12">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="font-display text-2xl font-bold text-slate-900">
+            Produits disponibles
+          </h2>
+          <button
+            onClick={() => navigate('/')}
+            className="text-ev-blue text-sm font-semibold hover:underline"
+          >
+            Rechercher mon vehicule pour filtrer
+          </button>
+        </div>
+
+        {isLoadingParts ? (
+          <p className="text-center text-slate-400 py-12">Chargement des produits...</p>
+        ) : allParts.length === 0 ? (
+          <p className="text-center text-slate-400 py-12">Aucun produit disponible pour le moment.</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+            {allParts.map(part => (
+              <div
+                key={part.id}
+                onClick={() => navigate(`/parts/${part.id}`)}
+                className="bg-white rounded-2xl border border-slate-200 hover:border-ev-blue/40 hover:shadow-lg transition-all overflow-hidden cursor-pointer"
+              >
+                <div className="h-32 bg-slate-100 flex items-center justify-center">
+                  {part.image_url ? (
+                    <img
+                      src={`${BASE_URL}${part.image_url}`}
+                      alt={part.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-4xl opacity-20">🔧</div>
+                  )}
+                </div>
+                <div className="p-4">
+                  <p className="font-semibold text-slate-900 text-sm leading-snug mb-1 line-clamp-2">
+                    {part.name}
+                  </p>
+                  <p className="text-slate-400 text-xs font-mono mb-2">{part.brand}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="font-display font-bold text-slate-900">
+                      {part.price.toFixed(2)} €
+                    </span>
+                    <span className={`text-xs font-semibold ${part.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                      {part.stock > 0 ? 'En stock' : 'Rupture'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Garage CTA */}

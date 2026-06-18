@@ -97,11 +97,13 @@ async def get_me(
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+        raise HTTPException(status_code=404, detail="Utilisateur non trouve")
 
     return {
         "id": str(user.id),
         "email": user.email,
         "full_name": user.full_name,
-        "is_admin": user.is_admin
+        "phone": user.phone,
+        "is_admin": user.is_admin,
+        "loyalty_points": user.loyalty_points or 0
     }

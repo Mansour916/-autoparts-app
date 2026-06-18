@@ -8,8 +8,7 @@ import uuid
 class OrderService:
 
     @staticmethod
-    async def create_order(db: AsyncSession, user_id: str, items: list, delivery_address: str):
-        # Calculer le total et vérifier le stock
+    async def create_order(db: AsyncSession, user_id: str, items: list, delivery_address: str = None, delivery_phone: str = None, delivery_email: str = None, fulfillment_type: str = "delivery", pickup_store_id: str = None):
         total = 0
         order_items = []
 
@@ -18,7 +17,7 @@ class OrderService:
             part = result.scalar_one_or_none()
 
             if not part:
-                raise ValueError(f"Pièce {item['part_id']} non trouvée")
+                raise ValueError(f"Piece {item['part_id']} non trouvee")
             if part.stock < item["quantity"]:
                 raise ValueError(f"Stock insuffisant pour {part.name}")
 
@@ -28,22 +27,30 @@ class OrderService:
                 "quantity": item["quantity"],
                 "unit_price": part.price
             })
-            # Décrémenter le stock
             part.stock -= item["quantity"]
 
-        # Créer la commande
         order = Order(
             id=uuid.uuid4(),
             user_id=user_id,
             status=OrderStatus.confirmed,
             total_price=total,
             delivery_address=delivery_address,
+            delivery_phone=delivery_phone,
+            delivery_email=delivery_email,
+            fulfillment_type=fulfillment_type,
+            pickup_store_id=pickup_store_id,
             is_free_return=True
         )
         db.add(order)
         await db.flush()
 
-        # Créer les lignes de commande
+        from app.models.user import User
+        result_user = await db.execute(select(User).where(User.id == user_id))
+        user = result_user.scalar_one_or_none()
+        if user:
+            points_earned = int(total)
+            user.loyalty_points = (user.loyalty_points or 0) + points_earned
+
         for oi in order_items:
             order_item = OrderItem(
                 id=uuid.uuid4(),
@@ -62,7 +69,10 @@ class OrderService:
     async def get_user_orders(db: AsyncSession, user_id: str):
         result = await db.execute(
             select(Order)
-            .options(selectinload(Order.items).selectinload(OrderItem.part))
+            .options(
+                selectinload(Order.items).selectinload(OrderItem.part),
+                selectinload(Order.pickup_store)
+            )
             .where(Order.user_id == user_id)
             .order_by(Order.created_at.desc())
         )

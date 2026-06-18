@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { partsAPI, BASE_URL } from '../services/api'
 import useVehicleStore from '../store/vehicleStore'
 import useCartStore from '../store/cartStore'
@@ -15,6 +15,13 @@ export default function PartsPage() {
   const { selectedVehicle } = useVehicleStore()
   const { addItem, items } = useCartStore()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  useEffect(() => {
+    if (location.state && location.state.category) {
+      setActiveCategory(location.state.category)
+    }
+  }, [location.state])
 
   useEffect(() => {
     if (!selectedVehicle) { navigate('/'); return }
