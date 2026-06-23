@@ -29,6 +29,7 @@ export const vehiclesAPI = {
 
 export const partsAPI = {
   list: (params) => api.get('/parts/', { params }),
+  listMine: () => api.get('/parts/mine'),
   get: (id, vehicleId) => api.get(`/parts/${id}`, { params: { vehicle_id: vehicleId } }),
   create: (data) => api.post('/parts/', data),
   update: (id, data) => api.put(`/parts/${id}`, data),
@@ -70,7 +71,22 @@ export const storesAPI = {
   create: (data) => api.post('/stores/', data),
   remove: (storeId) => api.delete(`/stores/${storeId}`)
 }
+export const sellerAPI = {
+  getStats: () => api.get('/seller/stats')
+}
 
+export const adminSellersAPI = {
+  list: () => api.get('/admin/sellers/'),
+  approve: (sellerId) => api.patch(`/admin/sellers/${sellerId}/approve`),
+  reject: (sellerId) => api.patch(`/admin/sellers/${sellerId}/reject`)
+}
+
+export const adminDashboardAPI = {
+  getStats: () => api.get('/admin/dashboard/stats'),
+  getTransactions: () => api.get('/admin/dashboard/transactions'),
+  getLowStock: () => api.get('/admin/dashboard/low-stock'),
+  updateOrderStatus: (orderId, status) => api.patch(`/admin/dashboard/transactions/${orderId}/status`, null, { params: { status } })
+}
 export const BASE_URL = 'http://localhost:8000'
 
 export default api

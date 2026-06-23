@@ -8,7 +8,9 @@ import uuid
 from app.database import get_db
 from app.models.part import Part, PartCategory
 from app.models.part_image import PartImage
+from app.models.user import User
 from app.services.compatibility_service import CompatibilityService
+from app.routes.garage import get_current_user
 
 router = APIRouter(prefix="/parts", tags=["parts"])
 
@@ -44,10 +46,24 @@ class CompatibilityAdd(BaseModel):
     vehicle_id: str
     notes: Optional[str] = ""
 
+async def get_current_seller(db: AsyncSession, user_id: str) -> User:
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouve")
+    if not user.is_admin and user.role != "seller":
+        raise HTTPException(status_code=403, detail="Acces reserve aux vendeurs ou administrateurs")
+    if not user.is_admin and user.seller_status != "approved":
+        if user.seller_status == "pending":
+            raise HTTPException(status_code=403, detail="Votre compte vendeur est en attente de validation par un administrateur")
+        raise HTTPException(status_code=403, detail="Votre demande de compte vendeur a ete refusee")
+    return user
+
 @router.get("/")
 async def list_parts(
     vehicle_id: Optional[str] = Query(None),
     category: Optional[PartCategory] = Query(None),
+    store_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
     if vehicle_id:
@@ -57,7 +73,27 @@ async def list_parts(
     query = select(Part).where(Part.is_active == True)
     if category:
         query = query.where(Part.category == category)
+    if store_id:
+        query = query.where(Part.store_id == store_id)
 
+    result = await db.execute(query)
+    return result.scalars().all()
+
+@router.get("/mine")
+async def list_my_parts(
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user)
+):
+    result_user = await db.execute(select(User).where(User.id == user_id))
+    seller = result_user.scalar_one_or_none()
+    if not seller:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouve")
+    if not seller.is_admin and seller.role != "seller":
+        raise HTTPException(status_code=403, detail="Acces reserve aux vendeurs ou administrateurs")
+
+    query = select(Part).where(Part.is_active == True)
+    if not seller.is_admin:
+        query = query.where(Part.seller_id == seller.id)
     result = await db.execute(query)
     return result.scalars().all()
 
@@ -130,6 +166,7 @@ async def get_part(part_id: str, vehicle_id: Optional[str] = Query(None), db: As
         "video_url": part.video_url,
         "warranty_months": part.warranty_months,
         "certification": part.certification,
+        "store_id": str(part.store_id) if part.store_id else None,
     }
 
     if vehicle_id:
@@ -139,25 +176,42 @@ async def get_part(part_id: str, vehicle_id: Optional[str] = Query(None), db: As
     return response
 
 @router.post("/", status_code=201)
-async def create_part(data: PartCreate, db: AsyncSession = Depends(get_db)):
+async def create_part(
+    data: PartCreate,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user)
+):
     try:
+        seller = await get_current_seller(db, user_id)
         part = Part(
             id=uuid.uuid4(),
-            **data.model_dump()
+            **data.model_dump(),
+            store_id=seller.store_id,
+            seller_id=seller.id
         )
         db.add(part)
         await db.commit()
         await db.refresh(part)
         return {"message": "Piece ajoutee", "id": str(part.id)}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/{part_id}")
-async def update_part(part_id: str, data: PartUpdate, db: AsyncSession = Depends(get_db)):
+async def update_part(
+    part_id: str,
+    data: PartUpdate,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user)
+):
+    seller = await get_current_seller(db, user_id)
     result = await db.execute(select(Part).where(Part.id == part_id))
     part = result.scalar_one_or_none()
     if not part:
         raise HTTPException(status_code=404, detail="Piece non trouvee")
+    if not seller.is_admin and part.seller_id != seller.id:
+        raise HTTPException(status_code=403, detail="Vous ne pouvez modifier que vos propres pieces")
 
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -168,11 +222,18 @@ async def update_part(part_id: str, data: PartUpdate, db: AsyncSession = Depends
     return {"message": "Piece mise a jour", "id": str(part.id)}
 
 @router.delete("/{part_id}")
-async def delete_part(part_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_part(
+    part_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user)
+):
+    seller = await get_current_seller(db, user_id)
     result = await db.execute(select(Part).where(Part.id == part_id))
     part = result.scalar_one_or_none()
     if not part:
         raise HTTPException(status_code=404, detail="Piece non trouvee")
+    if not seller.is_admin and part.seller_id != seller.id:
+        raise HTTPException(status_code=403, detail="Vous ne pouvez supprimer que vos propres pieces")
     part.is_active = False
     await db.commit()
     return {"message": "Piece supprimee"}

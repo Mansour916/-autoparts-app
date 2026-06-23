@@ -10,6 +10,9 @@ from app.routes.orders import router as orders_router
 from app.routes.maintenance import router as maintenance_router
 from app.routes.uploads import router as uploads_router
 from app.routes.stores import router as stores_router
+from app.routes.seller_stats import router as seller_stats_router
+from app.routes.admin_sellers import router as admin_sellers_router
+from app.routes.admin_dashboard import router as admin_dashboard_router
 
 app = FastAPI(title="AutoParts API", version="1.0.0")
 
@@ -31,6 +34,8 @@ app.include_router(orders_router)
 app.include_router(maintenance_router)
 app.include_router(uploads_router)
 app.include_router(stores_router)
+app.include_router(seller_stats_router)
+app.include_router(admin_sellers_router)
 
 @app.get("/")
 async def root():

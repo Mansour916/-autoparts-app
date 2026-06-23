@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, Text, Enum
+from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, Text, Enum, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -35,7 +35,10 @@ class Part(Base):
     warranty_months = Column(Integer, default=24)
     certification = Column(String(100), nullable=True)
     is_active = Column(Boolean, default=True)
+    store_id = Column(UUID(as_uuid=True), ForeignKey("stores.id"), nullable=True)
+    seller_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     compatibilities = relationship("CompatibilityMatrix", back_populates="part")
     images = relationship("PartImage", back_populates="part", cascade="all, delete-orphan", order_by="PartImage.position")
+    store = relationship("Store")

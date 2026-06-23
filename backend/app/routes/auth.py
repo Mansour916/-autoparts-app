@@ -5,21 +5,27 @@ from pydantic import BaseModel, EmailStr
 from jose import jwt
 import bcrypt
 from datetime import datetime, timedelta
+from typing import Optional
 import uuid
 
 from app.database import get_db
 from app.models.user import User
+from app.models.store import Store
 from app.config import settings
 from app.routes.garage import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Schémas
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     full_name: str = ""
     phone: str = ""
+    role: str = "user"
+    store_name: Optional[str] = None
+    store_address: Optional[str] = None
+    store_latitude: Optional[float] = None
+    store_longitude: Optional[float] = None
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -29,7 +35,6 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
-# Fonctions utilitaires
 def hash_password(password: str) -> str:
     password_bytes = password[:72].encode('utf-8')
     salt = bcrypt.gensalt()
@@ -46,13 +51,33 @@ def create_token(user_id: str) -> str:
         algorithm="HS256"
     )
 
-# Endpoints
 @router.post("/register", status_code=201)
 async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     try:
         result = await db.execute(select(User).where(User.email == data.email))
         if result.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="Email déjà utilisé")
+            raise HTTPException(status_code=400, detail="Email deja utilise")
+
+        role = data.role if data.role in ["user", "seller"] else "user"
+        store_id = None
+        seller_status = "approved"
+
+        if role == "seller":
+            if not data.store_name or not data.store_address:
+                raise HTTPException(status_code=400, detail="Nom et adresse du magasin requis pour un vendeur")
+
+            store = Store(
+                id=uuid.uuid4(),
+                name=data.store_name,
+                address=data.store_address,
+                latitude=data.store_latitude or 0.0,
+                longitude=data.store_longitude or 0.0,
+                phone=data.phone
+            )
+            db.add(store)
+            await db.flush()
+            store_id = store.id
+            seller_status = "pending"
 
         user = User(
             id=uuid.uuid4(),
@@ -60,10 +85,18 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
             hashed_password=hash_password(data.password),
             full_name=data.full_name,
             phone=data.phone,
+            role=role,
+            store_id=store_id,
+            seller_status=seller_status
         )
         db.add(user)
         await db.commit()
-        return {"message": "Compte créé avec succès", "email": user.email}
+        return {
+            "message": "Compte cree avec succes",
+            "email": user.email,
+            "role": role,
+            "seller_status": seller_status
+        }
 
     except HTTPException:
         raise
@@ -104,6 +137,9 @@ async def get_me(
         "email": user.email,
         "full_name": user.full_name,
         "phone": user.phone,
+        "role": user.role or "user",
+        "store_id": str(user.store_id) if user.store_id else None,
+        "seller_status": user.seller_status or "approved",
         "is_admin": user.is_admin,
         "loyalty_points": user.loyalty_points or 0
     }

@@ -11,6 +11,7 @@ import MaintenancePage from './pages/MaintenancePage'
 import DiagramPage from './pages/DiagramPage'
 import AdminPage from './pages/AdminPage'
 import StoreFinderPage from './pages/StoreFinderPage'
+import SellerDashboard from './pages/SellerDashboard'
 import Navbar from './components/Navbar'
 import useAuthStore from './store/authStore'
 
@@ -32,14 +33,22 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/" element={
-          <ProtectedRoute>
+          <>
+            <Navbar />
             <SearchPage />
-          </ProtectedRoute>
+          </>
         } />
         <Route path="/parts" element={
-          <ProtectedRoute>
+          <>
+            <Navbar />
             <PartsPage />
-          </ProtectedRoute>
+          </>
+        } />
+        <Route path="/parts/:partId" element={
+          <>
+            <Navbar />
+            <PartDetailPage />
+          </>
         } />
         <Route path="/parts/:partId" element={
           <ProtectedRoute>
@@ -79,6 +88,11 @@ export default function App() {
         <Route path="/stores" element={
           <ProtectedRoute>
             <StoreFinderPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/seller" element={
+          <ProtectedRoute>
+            <SellerDashboard />
           </ProtectedRoute>
         } />
       </Routes>
